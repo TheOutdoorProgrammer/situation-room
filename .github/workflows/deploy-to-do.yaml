@@ -29,25 +29,25 @@ jobs:
         with:
           platforms: linux/arm64
           push: true
-          tags: ghcr.io/apollorion/situationroom:latest
+          tags: ghcr.io/theoutdoorprogrammer/situationroom:latest
 
       - name: Build and push SHA-tagged image
         uses: docker/build-push-action@v6
         with:
           platforms: linux/arm64
           push: true
-          tags: ghcr.io/apollorion/situationroom:${{ github.sha }}
+          tags: ghcr.io/theoutdoorprogrammer/situationroom:${{ github.sha }}
 
       - name: Checkout flux repository
         uses: actions/checkout@v4
         with:
-          repository: apollorion/flux
+          repository: theoutdoorprogrammer/flux
           ssh-key: ${{ secrets.FLUX_DEPLOY_KEY }}
           path: flux-repo
 
       - name: Update deployment file in flux repo
         run: |
-          sed -i 's|image: .*|image: ghcr.io/apollorion/situationroom:${{ github.sha }}|' flux-repo/clusters/home/situationroom/deployment.yaml
+          sed -i 's|image: .*|image: ghcr.io/theoutdoorprogrammer/situationroom:${{ github.sha }}|' flux-repo/clusters/home/situationroom/deployment.yaml
 
       - name: Commit and push changes to flux repo
         run: |
