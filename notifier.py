@@ -10,7 +10,10 @@ import otel_config
 tracer = otel_config.init_telemetry("situation-room-notifier", "1.0.0")
 
 # Instrument requests library for automatic HTTP tracing
-RequestsInstrumentor().instrument()
+# Exclude OTEL collector endpoints to prevent instrumentation loops
+RequestsInstrumentor().instrument(
+    excluded_urls=".*v1/traces.*,.*opentelemetry-collector.*"
+)
 
 groups = helpers.get_groups()
 posts = helpers.get_posts()

@@ -18,7 +18,10 @@ app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
 
 # Instrument requests library for automatic HTTP tracing
-RequestsInstrumentor().instrument()
+# Exclude OTEL collector endpoints to prevent instrumentation loops
+RequestsInstrumentor().instrument(
+    excluded_urls=".*v1/traces.*,.*opentelemetry-collector.*"
+)
 
 def generate_page(title, content, margin="10%"):
     return f"""
