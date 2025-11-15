@@ -4,7 +4,21 @@ import requests
 import helpers
 import os
 
+# OpenTelemetry imports
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
+import otel_config
+
+# Initialize OpenTelemetry
+otel_config.init_telemetry("situation-room-website", "1.0.0")
+
 app = Flask(__name__)
+
+# Instrument Flask for automatic tracing
+FlaskInstrumentor().instrument_app(app)
+
+# Instrument requests library for automatic HTTP tracing
+RequestsInstrumentor().instrument()
 
 def generate_page(title, content, margin="10%"):
     return f"""

@@ -5,6 +5,16 @@ from datetime import datetime
 
 import helpers
 
+# OpenTelemetry imports
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
+import otel_config
+
+# Initialize OpenTelemetry
+tracer = otel_config.init_telemetry("situation-room-scraper", "1.0.0")
+
+# Instrument requests library for automatic HTTP tracing
+RequestsInstrumentor().instrument()
+
 base_url = "https://www.nhl.com"
 
 class Post:
@@ -39,12 +49,15 @@ class Post:
         return transfigure(self.url)
 
     def _fill(self):
-        soup = soupify(f"{base_url}{self.url}")
-        article = soup.find('article')
+        with tracer.start_as_current_span("post.fill_details") as span:
+            span.set_attribute("post.url", self.url)
+            soup = soupify(f"{base_url}{self.url}")
+            article = soup.find('article')
 
-        article_body = article.find('div', {'class': 'oc-c-body-part oc-c-markdown-stories'})
+            article_body = article.find('div', {'class': 'oc-c-body-part oc-c-markdown-stories'})
 
-        self.post_text = transfigure(article_body.text)
+            self.post_text = transfigure(article_body.text)
+            span.set_attribute("post.text_length", len(self.post_text))
 
     def get_challenge_initiator(self):
         if self.post_text is None:
@@ -120,34 +133,44 @@ def transfigure(text):
             .strip())
 
 def soupify(url):
-    r = requests.get(url)
-    return bs4.BeautifulSoup(r.content, 'html.parser', from_encoding="utf-8")
+    with tracer.start_as_current_span("html.parse") as span:
+        span.set_attribute("http.url", url)
+        r = requests.get(url)
+        span.set_attribute("http.status_code", r.status_code)
+        span.set_attribute("http.response_size", len(r.content))
+        return bs4.BeautifulSoup(r.content, 'html.parser', from_encoding="utf-8")
 
 # Get the posts from https://www.nhl.com/news/topic/situation-room/
 def get_posts():
-    date_time_string = datetime.now().strftime("%d-%m-%YT%H-%M-%S")
-    url = f"{base_url}/news/topic/situation-room/?date_cache_busting={date_time_string}"
-    print(f"Getting all posts from: {url}")
-    soup = soupify(url)
-    posts = soup.find_all('div', {'class': 'd3-l-col__col-3'})
+    with tracer.start_as_current_span("scraper.get_posts") as span:
+        date_time_string = datetime.now().strftime("%d-%m-%YT%H-%M-%S")
+        url = f"{base_url}/news/topic/situation-room/?date_cache_busting={date_time_string}"
+        print(f"Getting all posts from: {url}")
+        span.set_attribute("scraper.url", url)
 
-    classed_posts = []
-    for post in posts:
-        title = post.find('h3').text
-        url = post.find('a')['href']
+        soup = soupify(url)
+        posts = soup.find_all('div', {'class': 'd3-l-col__col-3'})
+        span.set_attribute("scraper.posts_found", len(posts))
 
-        last_update = helpers.get_last_update()
-        if url == last_update:
-            print("Last update found, breaking", url)
-            break
+        classed_posts = []
+        for post in posts:
+            title = post.find('h3').text
+            url = post.find('a')['href']
 
-        try:
-            p = Post(title, url)
-            classed_posts.append(p.dumps())
-        except Exception as e:
-            print(f"Error safely continuing: {e}")
+            last_update = helpers.get_last_update()
+            if url == last_update:
+                print("Last update found, breaking", url)
+                break
 
-    return classed_posts
+            try:
+                p = Post(title, url)
+                classed_posts.append(p.dumps())
+            except Exception as e:
+                print(f"Error safely continuing: {e}")
+                span.add_event("post.processing_error", {"error": str(e), "url": url})
+
+        span.set_attribute("scraper.new_posts", len(classed_posts))
+        return classed_posts
 
 posts = get_posts()
 

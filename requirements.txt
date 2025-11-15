@@ -1,0 +1,16 @@
+# Core dependencies
+requests>=2.31.0
+flask>=3.0.0
+beautifulsoup4>=4.12.0
+
+# OpenTelemetry core
+opentelemetry-api>=1.21.0
+opentelemetry-sdk>=1.21.0
+
+# OpenTelemetry instrumentation
+opentelemetry-instrumentation-flask>=0.42b0
+opentelemetry-instrumentation-requests>=0.42b0
+
+# OpenTelemetry exporters
+opentelemetry-exporter-otlp-proto-grpc>=1.21.0
+opentelemetry-exporter-otlp-proto-http>=1.21.0

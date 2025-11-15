@@ -1,8 +1,18 @@
 import json
 
+# OpenTelemetry imports
+import otel_config
+
+# Get a tracer for helpers module
+tracer = otel_config.get_tracer(__name__)
+
 def read_json_from_disk(file_name):
-    with open(file_name, 'r') as f:
-        return json.load(f)
+    with tracer.start_as_current_span("file.read_json") as span:
+        span.set_attribute("file.name", file_name)
+        with open(file_name, 'r') as f:
+            data = json.load(f)
+            span.set_attribute("file.size_bytes", len(json.dumps(data)))
+            return data
 
 def get_groups():
     return read_json_from_disk('storage/mounted/groups.json')
@@ -14,8 +24,11 @@ def get_last_update():
     return read_json_from_disk('storage/last_update.json')["last_update"]
 
 def write_last_update(key):
-    with open("storage/last_update.json", "w") as f:
-        f.write(json.dumps({"last_update": key}))
+    with tracer.start_as_current_span("file.write_last_update") as span:
+        span.set_attribute("file.name", "storage/last_update.json")
+        span.set_attribute("last_update.value", key)
+        with open("storage/last_update.json", "w") as f:
+            f.write(json.dumps({"last_update": key}))
 
 group_to_team = {
     "ANA": "Anaheim Ducks",
